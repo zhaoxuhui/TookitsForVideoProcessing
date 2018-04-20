@@ -1,65 +1,73 @@
 # coding=utf-8
 import cv2
+import os.path
+import sys
 
-# 视频裁剪程序，用于满足视频时长裁剪的需求
 
-# 输入需要处理的视频文件
-video_path = raw_input("Input path of video:\n")
-cap = cv2.VideoCapture(video_path)
+def splitVideo(video_path, out_path, interval, start, end):
+    """
+    拆分视频
 
-# 获取视频的总帧数、fps
-frames = int(cap.get(7))
-fps = int(cap.get(5))
+    :param video_path: 视频路径
+    :param out_path: 输出影像的文件夹
+    :param interval: 采样间隔，1表示逐帧输出
+    :param start: 起始时间，单位为秒
+    :param end: 结束时间，单位为秒
+    :return: 空
+    """
 
-print (round(frames / fps, 2)).__str__(), 'seconds(', frames, 'frames', ') in total.'
+    separator = os.path.sep
 
-# 输入输出影像的文件夹
-out_path = raw_input("Input save path of video:\n")
+    # 需要处理的视频文件
+    cap = cv2.VideoCapture(video_path)
 
-# 输入开始时间
-start = 0
-start = input("Start second of output( >=0 ):\n")
+    # 获取视频的总帧数、fps
+    frames = int(cap.get(7))
+    fps = int(cap.get(5))
 
-# 输入结束时间
-end = 0
-str = "End second of output( <" + (frames / fps).__str__() + " )\n"
-end = input(str)
+    print frames, 'frames in total.'
 
-# 计算需要输出的帧数
-startIndex = int(start * fps)
-endIndex = int(end * fps)
-rangeFrames = endIndex - startIndex
-count = 0
+    # 计算需要输出的帧数
+    startIndex = int(start * fps)
+    endIndex = int(end * fps)
+    if endIndex > frames:
+        endIndex = frames
+    rangeFrames = endIndex - startIndex
 
-video_h = int(cap.get(4))
-video_w = int(cap.get(3))
-fourcc = cv2.VideoWriter_fourcc(*'XVID')
-out = cv2.VideoWriter(out_path, fourcc, fps, (video_w, video_h))
+    # 判断如果小于0，返回
+    if rangeFrames < 0:
+        print 'Error.'
+        exit()
 
-# 判断如果小于0，返回
-if rangeFrames < 0:
-    print 'Error.'
-    exit()
+    # 输出提示信息
+    print rangeFrames / interval, 'frames are going to be outputted.'
 
-# 输出提示信息
-print rangeFrames, 'frames are going to be outputted.'
+    print '---Cutting---'
 
-# 读取开始帧之前的内容，将将读取帧数定位到startIndex
-for i in range(startIndex):
-    ret, frame = cap.read()
-    print "Pre-processing...", round((i * 1.0 + 1) / startIndex * 100, 2), '%'
+    cap.set(cv2.CAP_PROP_POS_FRAMES, startIndex)
 
-print '---Cutting---'
+    # 循环输出帧
+    for i in range(startIndex, endIndex, interval):
+        cap.set(cv2.CAP_PROP_POS_FRAMES, i)
+        ret, frame = cap.read()
+        if frame is None:
+            break
+        else:
+            # 输出影像文件
+            cv2.imwrite(out_path + separator + "%04d" % (startIndex + i + 1) + ".jpg", frame)
+            print 'Cutting...', round(((i - startIndex) * 1.0 / (rangeFrames)) * 100, 2), "% finished."
+    # 释放对象
+    cap.release()
 
-# 循环输出帧
-for i in range(startIndex, endIndex):
-    ret, frame = cap.read()
-    if frame is None:
-        break
-    else:
-        # 输出影像文件
-        out.write(frame)
-        count += 1
-        print 'Cutting...', round((count * 1.0 / rangeFrames) * 100, 2), "% finished."
-# 释放对象
-cap.release()
+
+if sys.argv.__len__() == 2 and sys.argv[1] == "help":
+    print("用于将视频拆分成一帧帧的图像，便于后续处理，支持设置起始、结束位置以及采样间隔\n")
+    print("脚本启动命令格式：")
+    print("scriptname.py:[video_path] [out_path] [interval] [start] [end]")
+    print("\n函数帮助:")
+    exec "help(splitVideo)"
+elif sys.argv.__len__() == 6:
+    print("calibrationWithCamera")
+    splitVideo(sys.argv[1], sys.argv[2], int(sys.argv[3]), float(sys.argv[4]), float(sys.argv[5]))
+else:
+    print("Input \"scriptname.py help\" for help information.")
